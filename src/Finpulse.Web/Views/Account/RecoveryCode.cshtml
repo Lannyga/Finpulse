@@ -1,0 +1,2 @@
+@{ ViewData["Title"] = "Guarda tu código"; }
+<section class="panel narrow"><span class="eyebrow">ACCESO PROTEGIDO</span><h1>Guarda este código en un lugar seguro.</h1><p>Este código permite recuperar tu cuenta una sola vez. Se muestra únicamente en esta pantalla. Al usarlo o cambiar tu contraseña, recibirás uno nuevo.</p><code class="recovery-code">@ViewBag.Code</code><p>No lo compartas. Guárdalo en tu gestor de contraseñas o en una copia privada.</p><a class="btn btn-primary" asp-controller="Finance" asp-action="Index">Continuar</a></section>

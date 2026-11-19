@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/Finpulse.Web/Finpulse.Web.csproj" />
+  <Project Path="tests/Finpulse.WebChecks/Finpulse.WebChecks.csproj" />
+</Solution>

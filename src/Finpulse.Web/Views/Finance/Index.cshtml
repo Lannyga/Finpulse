@@ -1,0 +1,26 @@
+@model PortalSnapshot
+@{
+    ViewData["Title"] = "Resumen";
+    var today = PortalFinance.Today; var d = Model.Data; var s = FinanceRules.Summarize(d, today);
+    var analysis = new FinancialAnalysisService(); var history = analysis.History(d, today, 6);
+    var advice = analysis.Recommendations(d, today, s.Income, s.Expense, []);
+    var chart = JsonSerializer.Serialize(new { labels = history.Select(x => x.Label), series = new[] { new { label = "Ingresos", values = history.Select(x => x.Income) }, new { label = "Gastos", values = history.Select(x => x.Expense) } } });
+    string Money(decimal n) => n.ToString("N2", CultureInfo.GetCultureInfo("es-BO"));
+}
+<div class="page-heading"><div><span class="eyebrow">TU DINERO, CON DIRECCIÓN</span><h1>Una mirada a tu presente<span class="accent">.</span></h1><p class="muted">Hola, @User.Identity?.Name. Cada pequeño paso cuenta.</p></div><a class="btn btn-primary" asp-action="Movements">+ Registrar movimiento</a></div>
+<div class="period-bar"><span class="pill"><span class="status-dot" aria-hidden="true"></span>@today.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("es-BO"))</span><span class="muted small">Datos reales registrados hasta el @today.ToString("dd/MM/yyyy")</span></div>
+<div class="bento">
+<section class="panel balance-card"><span class="eyebrow">SALDO TOTAL</span><div class="money"><span>Bs</span> @Money(s.Balance)</div><p>Tu punto de partida para lo que viene.</p><div class="balance-bottom"><span>Disponible después de metas<strong>Bs @Money(s.Available)</strong></span><svg width="92" height="50" viewBox="0 0 92 50" aria-hidden="true"><path d="M1 44L16 31 29 36 46 17 59 23 76 6 91 1" fill="none" stroke="currentColor" stroke-width="3"/></svg></div></section>
+<section class="panel metric"><span class="metric-icon" aria-hidden="true">↙</span><span class="eyebrow">INGRESOS DEL MES</span><strong>Bs @Money(s.Income)</strong><span class="muted small">Lo que recibiste este mes</span></section>
+<section class="panel metric"><span class="metric-icon expense-icon" aria-hidden="true">↗</span><span class="eyebrow">GASTOS DEL MES</span><strong>Bs @Money(s.Expense)</strong><span class="muted small">Lo que destinaste a tu día a día</span></section>
+<section class="panel chart-card"><div class="section-heading"><div><span class="eyebrow">EL PANORAMA COMPLETO</span><h2>Tu pulso financiero</h2></div><span class="pill small">Últimos 6 meses</span></div><div class="chart-container"><canvas data-fin-chart="@chart" aria-label="Historial de ingresos y gastos. Consulta los valores en Reportes." role="img"></canvas></div><a class="text-link" asp-action="Reports">Ver datos y reportes <span aria-hidden="true">↗</span></a></section>
+<section class="panel savings-card"><span class="eyebrow">EL HÁBITO QUE SUMA</span><h2>Tu ahorro del mes</h2><div class="money"><span>Bs</span> @Money(s.Savings)</div><div class="savings-rule"></div><p><strong>@s.SavingsRate.ToString("N1") %</strong> de tus ingresos</p><p class="muted small">Ingresos menos gastos. Las asignaciones a metas no se descuentan otra vez.</p><a class="text-link" asp-action="Goals">Dale una meta a tu ahorro ↗</a></section>
+<section class="panel span-two"><div class="section-heading"><h2>Últimos movimientos</h2><a class="text-link" asp-action="Movements">Ver todos ↗</a></div>
+@if (d.Movements.Count == 0) { <div class="empty"><span class="empty-mark" aria-hidden="true">↗</span><h3>Aquí empieza tu historia.</h3><p>Registra tu primer ingreso o gasto para conocer tu pulso financiero.</p><a asp-action="Movements">Registrar un movimiento</a></div> }
+@foreach (var m in d.Movements.Take(4)) { <div class="transaction"><span class="transaction-symbol" aria-hidden="true">@(m.Kind == MovementKind.Income ? "↙" : "↗")</span><div><strong>@m.Category</strong><span class="muted small">@m.Description · @m.Date.ToString("dd MMM", CultureInfo.GetCultureInfo("es-BO"))</span></div><strong class="@(m.Kind == MovementKind.Income ? "accent" : "")">@(m.Kind == MovementKind.Income ? "+" : "−") Bs @Money(m.Amount)</strong></div> }
+</section>
+<section class="panel insight-card"><span class="eyebrow">UN POCO MÁS DE CLARIDAD</span><h2>Tu siguiente paso</h2>
+@if (advice.Count == 0) { <p>@(d.Movements.Count == 0 ? "Registra tus movimientos para recibir recomendaciones basadas en tus propios datos." : "Revisa tus metas y presupuestos para dar dirección a tu saldo disponible.")</p> }
+@foreach (var a in advice.Take(2)) { <h3>@a.Title</h3><p class="small muted">@a.Detail</p> }
+<a class="text-link" asp-action="Budgets">Revisar presupuestos ↗</a></section>
+</div>

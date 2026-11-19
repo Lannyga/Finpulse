@@ -1,0 +1,155 @@
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="clr-namespace:System;assembly=System.Runtime" xmlns:c="clr-namespace:Finpulse.Desktop.Controls" x:Class="Finpulse.Desktop.Views.ProjectionsView">
+    <UserControl.Resources>
+        <DataTemplate xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Key="ScenarioCard">
+            <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,8,8">
+                <StackPanel>
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Nominal, StringFormat=Bs {0:N2}}" TextWrapping="Wrap" FontSize="20" Margin="0,8" Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock Text="{Binding Real, StringFormat=Real: Bs {0:N2}}" TextWrapping="Wrap" FontSize="12"/>
+                    <TextBlock Text="{Binding Note}" TextWrapping="Wrap" FontSize="11" Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="20"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Border Style="{StaticResource Card}" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Simula decisiones, compara caminos" Style="{StaticResource Subheading}"/>
+                    <TextBlock Text="{Binding BaselineMessage}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                    <WrapPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Saldo inicial (Bs)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding InitialCapital, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Saldo inicial (Bs)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Ingreso mensual (Bs)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding Income, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Ingreso mensual (Bs)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Gasto mensual (Bs)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding Expense, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Gasto mensual (Bs)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Reducir gastos (Bs/mes)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding ExpenseReduction, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Reducir gastos (Bs/mes)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Plazo personalizado (meses)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding Months, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Plazo personalizado (meses)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Aporte (vacío: excedente)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding MonthlyContribution, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Aporte (vacío: excedente)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                    </WrapPanel>
+                    <WrapPanel>
+                        <Button Content="1 año" Command="{Binding HorizonCommand}" CommandParameter="12" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
+                        <Button Content="3 años" Command="{Binding HorizonCommand}" CommandParameter="36" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
+                        <Button Content="5 años" Command="{Binding HorizonCommand}" CommandParameter="60" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
+                        <Button Content="10 años" Command="{Binding HorizonCommand}" CommandParameter="120" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
+                        <Button Content="Recalcular" Command="{Binding CalculateCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"/>
+                    </WrapPanel>
+                    <TextBlock Text="El aporte procede del excedente; la parte no aportada queda fuera del capital modelado. Los déficits se descuentan completos. Tasas iniciales cero, editables en cada escenario: no son probabilidades ni garantías." Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="12"/>
+                    <WrapPanel Margin="0,16,0,0">
+                        <StackPanel Width="258" Margin="0,0,16,0">
+                            <TextBlock Text="Editar escenario" Style="{StaticResource MutedText}"/>
+                            <ComboBox ItemsSource="{Binding ScenarioNames}" SelectedItem="{Binding SelectedScenarioName}" AutomationProperties.Name="Escenario que se edita"/>
+                        </StackPanel>
+                        <TextBlock Text="Edita cada escenario. Todos se comparan al mismo tiempo." Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                    <WrapPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Ingreso: variación anual (%)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SelectedAssumptions.IncomeChange, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Ingreso: variación anual (%)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Gasto: variación anual (%)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SelectedAssumptions.ExpenseChange, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Gasto: variación anual (%)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Inflación efectiva anual (%)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SelectedAssumptions.Inflation, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Inflación efectiva anual (%)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Rendimiento efectivo anual (%)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SelectedAssumptions.AnnualReturn, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Rendimiento efectivo anual (%)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                        <StackPanel Width="258" Margin="0,0,12,8">
+                            <TextBlock Text="Aporte: variación anual (%)" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding SelectedAssumptions.ContributionChange, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Aporte: variación anual (%)" Margin="0,4,0,6"/>
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding ValidationMessage}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="{Binding MonthlySavings}" FontSize="18" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Assumptions}" TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,0,0,16" FontSize="12"/>
+                <UniformGrid Columns="3">
+                    <ContentControl Content="{Binding ConservativeResult}" ContentTemplate="{StaticResource ScenarioCard}"/>
+                    <ContentControl Content="{Binding BaseResult}" ContentTemplate="{StaticResource ScenarioCard}"/>
+                    <ContentControl Content="{Binding OptimisticResult}" ContentTemplate="{StaticResource ScenarioCard}"/>
+                </UniformGrid>
+                <Border Style="{StaticResource Card}" Margin="0,8,0,20">
+                    <StackPanel>
+                        <WrapPanel>
+                            <CheckBox Content="Ajustar gráfico por inflación" IsChecked="{Binding RealValues}" Margin="0,0,24,12"/>
+                            <CheckBox Content="Resumen anual (tabla y gráfico)" IsChecked="{Binding AnnualView}"/>
+                        </WrapPanel>
+                        <c:FinancialLineChart Series="{Binding Chart}" Height="280" AutomationProperties.Name="Comparación de escenarios deterministas en bolivianos"/>
+                        <TextBlock Text="Línea continua: Base · guiones: Optimista · puntos: Conservador. Sin intervalos de confianza: son supuestos, no probabilidades." TextWrapping="Wrap" Style="{StaticResource MutedText}"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="Valores del escenario seleccionado · Bs" Style="{StaticResource Subheading}"/>
+                <DataGrid ItemsSource="{Binding Rows}" Height="290" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" EnableRowVirtualization="True" EnableColumnVirtualization="True" AutomationProperties.Name="Tabla financiera">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Mes" Binding="{Binding Month}" Width="55"/>
+                        <DataGridTextColumn Header="Fecha" Binding="{Binding Date}" Width="100"/>
+                        <DataGridTextColumn Header="Ingreso" Binding="{Binding Income, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Gasto" Binding="{Binding Expense, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Capacidad" Binding="{Binding Savings, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Aporte neto" Binding="{Binding Contribution, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Rendimiento" Binding="{Binding Return, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Nominal" Binding="{Binding Balance, StringFormat=N2}" Width="*"/>
+                        <DataGridTextColumn Header="Real" Binding="{Binding RealBalance, StringFormat=N2}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock Text="¿Mis metas llegan a tiempo?" Style="{StaticResource Subheading}" Margin="0,24,0,10"/>
+                <TextBlock Text="Estimaciones individuales: cada meta supone dedicarle todo el aporte simulado, sin usar el saldo inicial global. No pueden sumarse como si todas se financiaran a la vez. El acumulado existente ya forma parte del saldo y no se vuelve a sumar." TextWrapping="Wrap" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+                <DataGrid ItemsSource="{Binding Goals}" Height="220" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" EnableRowVirtualization="True" EnableColumnVirtualization="True" AutomationProperties.Name="Tabla financiera">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Meta" Binding="{Binding Name}" Width="160"/>
+                        <DataGridTextColumn Header="Reservado" Binding="{Binding Saved, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Objetivo" Binding="{Binding Target, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Requerido/mes" Binding="{Binding RequiredMonthly, StringFormat=N2}" Width="110"/>
+                        <DataGridTextColumn Header="Brecha/mes" Binding="{Binding Gap, StringFormat=N2}" Width="100"/>
+                        <DataGridTextColumn Header="Meses" Binding="{Binding MonthsNeeded}" Width="60"/>
+                        <DataGridTextColumn Header="Fecha estimada" Binding="{Binding EstimatedDate}" Width="115"/>
+                        <DataGridTextColumn Header="Estado" Binding="{Binding Status}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock Text="Análisis numérico y decisiones posibles" Style="{StaticResource Subheading}" Margin="0,24,0,12"/>
+                <DataGrid ItemsSource="{Binding Advice}" Height="200" RowHeight="{x:Static sys:Double.NaN}" MinRowHeight="64" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" EnableRowVirtualization="True" AutomationProperties.Name="Fundamentos del análisis">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Observación" Binding="{Binding Title}" Width="170"/>
+                        <DataGridTemplateColumn Header="Fundamento numérico" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Margin="4"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
