@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 internal static class HttpChecks
 {
-    public static async Task Run(string origin)
+    public static async Task<string> Run(string origin, Func<Task>? restart = null)
     {
         if (!Uri.TryCreate(origin,UriKind.Absolute,out var uri) || !uri.IsLoopback || uri.Scheme!="https") throw new ArgumentException("Solo servidor HTTPS local con base sintética.");
         int count=0;
@@ -27,7 +27,7 @@ internal static class HttpChecks
         var page=await Get(client,"/Finance/Movements");
         var category=Regex.Match(page,"<option value=\"(\\d+)\" data-kind=\"0\"").Groups[1].Value;
         var today=Finpulse.Web.Services.PortalFinance.Today.ToString("yyyy-MM-dd");
-        Dictionary<string,string> movement=new(){{"module","movements"},{"RequestKey",Field(page,"RequestKey")},{"Kind","0"},{"CategoryId",category},{"Amount","1200"},{"Date",today},{"Description","QA real HTTP"}};
+        Dictionary<string,string> movement=new(){{"module","movements"},{"RequestKey",Field(page,"RequestKey")},{"Kind","0"},{"CategoryId",category},{"Amount","1000"},{"Date",today},{"Description","QA real HTTP"}};
         Check((await Post(client,"/Finance/Save",page,movement)).StatusCode==HttpStatusCode.Redirect,"ingreso web guardado");
         Check((await Post(client,"/Finance/Save",page,movement)).StatusCode==HttpStatusCode.Redirect,"reenvío web tolerado");
         page=await Get(client,"/Finance/Movements");Check(Regex.Matches(page,"QA real HTTP").Count==1,"reenvío no duplica ingreso");
@@ -37,16 +37,25 @@ internal static class HttpChecks
         var otherPage=await Get(other,"/Finance/Movements");await Post(other,"/Finance/Delete",otherPage,new(){{"module","movements"},{"id",id}});
         Check((await Get(client,"/Finance/Movements")).Contains("QA real HTTP"),"borrado cruzado no afecta al propietario");
         var edit=await Get(client,"/Finance/Edit?module=movements&id="+id);
-        var editResult=await Post(client,"/Finance/Save",edit,new(){{"module","movements"},{"Id",id},{"Revision",Field(edit,"Revision")},{"RequestKey",Field(edit,"RequestKey")},{"Kind","0"},{"CategoryId",category},{"Amount","1500"},{"Date",today},{"Description","QA editado"}});
+        var editResult=await Post(client,"/Finance/Save",edit,new(){{"module","movements"},{"Id",id},{"Revision",Field(edit,"Revision")},{"RequestKey",Field(edit,"RequestKey")},{"Kind","0"},{"CategoryId",category},{"Amount","1000"},{"Date",today},{"Description","QA editado"}});
         Check(editResult.StatusCode==HttpStatusCode.Redirect&&(await Get(client,"/Finance/Movements")).Contains("QA editado"),"edición propia persistida");
         page=await Get(client,"/Finance/Movements");var expenseCategory=Regex.Match(page,"<option value=\"(\\d+)\" data-kind=\"1\"").Groups[1].Value;
-        Check((await Post(client,"/Finance/Save",page,new(){{"module","movements"},{"RequestKey",Field(page,"RequestKey")},{"Kind","1"},{"CategoryId",expenseCategory},{"Amount","850"},{"Date",today},{"Description",""}})).StatusCode==HttpStatusCode.Redirect,"gasto web guardado con descripción opcional vacía");
+        Check((await Post(client,"/Finance/Save",page,new(){{"module","movements"},{"RequestKey",Field(page,"RequestKey")},{"Kind","1"},{"CategoryId",expenseCategory},{"Amount","250"},{"Date",today},{"Description",""}})).StatusCode==HttpStatusCode.Redirect,"gasto web guardado con descripción opcional vacía");
         page=await Get(client,"/Finance/Budgets");Check((await Post(client,"/Finance/Save",page,new(){{"module","budgets"},{"RequestKey",Field(page,"RequestKey")},{"Month",today[..7]},{"Amount","800"}})).StatusCode==HttpStatusCode.Redirect,"presupuesto web guardado");
         page=await Get(client,"/Finance/Goals");Check((await Post(client,"/Finance/Save",page,new(){{"module","goals"},{"RequestKey",Field(page,"RequestKey")},{"Name","Equipo QA"},{"Description",""},{"Amount","1000"},{"Date",Finpulse.Web.Services.PortalFinance.Today.AddYears(1).ToString("yyyy-MM-dd")}})).StatusCode==HttpStatusCode.Redirect,"meta web guardada con descripción opcional vacía");
         page=await Get(client,"/Finance/Goals");var goalId=Field(page,"GoalId");var contributionForm=page[page.IndexOf("value=\"contributions\"",StringComparison.Ordinal)..];
         Check((await Post(client,"/Finance/Save",page,new(){{"module","contributions"},{"GoalId",goalId},{"RequestKey",Field(contributionForm,"RequestKey")},{"Amount","100"},{"Date",today}})).StatusCode==HttpStatusCode.Redirect,"aporte web guardado");
-        page=await Get(client,"/Finance/Projections");Check((await Post(client,"/Finance/Scenario",page,new(){{"RequestKey",Field(page,"RequestKey")},{"Name","Escenario QA"},{"Years","5"},{"Income","1200"},{"Expense","850"}})).StatusCode==HttpStatusCode.Redirect,"escenario web calculado");
-        Check((await Get(client,"/Finance/Projections")).Contains("21,000.00"),"resultado de proyección real en HTML");
+        page=await Get(client,"/Finance/Projections");Check((await Post(client,"/Finance/Scenario",page,new(){{"RequestKey",Field(page,"RequestKey")},{"Name","Escenario QA"},{"Years","5"},{"Income","1000"},{"Expense","250"}})).StatusCode==HttpStatusCode.Redirect,"escenario web calculado");
+        Check((await Get(client,"/Finance/Projections")).Contains("45,000.00"),"resultado de proyección real en HTML");
+        var dashboard = await Get(client,"/Finance/Index");
+        Check(Regex.IsMatch(dashboard, "class=\"money\"><span>Bs</span>\\s*750[.,]00"),"balance web de Bs 1000 menos Bs 250 = Bs 750");
+        Check(!(await Get(other,"/Finance/Movements")).Contains("QA editado"),"lectura HTTP aislada entre estudiantes");
+        if (restart is not null) {
+            await restart();
+            Check(Regex.IsMatch(await Get(client,"/Finance/Index"), "class=\"money\"><span>Bs</span>\\s*750[.,]00"),"balance y sesion persisten despues de reiniciar el portal");
+            Check((await Get(client,"/Finance/Goals")).Contains("Equipo QA"),"meta persiste despues del reinicio");
+            Check((await Get(client,"/Finance/Projections")).Contains("45,000.00"),"escenario persiste despues del reinicio");
+        }
         if(Environment.GetEnvironmentVariable("FINPULSE_QA_SNAPSHOTS") is string snapshotDirectory) {
             Directory.CreateDirectory(snapshotDirectory);
             var assets=new Uri(Path.GetFullPath("src/Finpulse.Web/wwwroot")+Path.DirectorySeparatorChar).AbsoluteUri;
@@ -66,5 +75,6 @@ internal static class HttpChecks
         Check(reset.StatusCode==HttpStatusCode.OK&&(await reset.Content.ReadAsStringAsync()).Contains("recovery-code"),"recuperación web renueva código");
         Check((await client.GetAsync("/Finance/Index")).StatusCode==HttpStatusCode.Redirect,"recuperación revoca cookie anterior");
         Console.WriteLine($"OK: {count} comprobaciones HTTP sobre base aislada.");
+        return name;
     }
 }

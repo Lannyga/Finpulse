@@ -1,0 +1,13 @@
+﻿
+PL/SQL procedure successfully completed.
+
+Restriccion verificada SQLCODE=-2290
+Restriccion verificada SQLCODE=-2291
+Restriccion verificada SQLCODE=-2291
+Restriccion verificada SQLCODE=-1
+OK: persistencia SQL directa, CHECK, FK, aislamiento de meta, unicidad y
+rollback. Sin cambios persistentes.
+
+PL/SQL procedure successfully completed.
+
+

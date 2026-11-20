@@ -4,6 +4,7 @@ using Finpulse.Domain;
 using Finpulse.Web.Data;
 using Finpulse.Web.Models;
 using Microsoft.EntityFrameworkCore;
+using Oracle.ManagedDataAccess.Client;
 
 namespace Finpulse.Web.Services;
 
@@ -36,7 +37,8 @@ public sealed class PortalFinance(PortalDb db, ILogger<PortalFinance> log)
         if(read is not null) await read.CommitAsync();
         return new(data, categories, scenarios, user.WarningPercent, user.Revision);
     }
-    public async Task Save(long userId, string module, FinanceForm f)
+    public Task Save(long userId, string module, FinanceForm f) => WithSerializationRetry(() => SaveAttempt(userId,module,f));
+    private async Task SaveAttempt(long userId, string module, FinanceForm f)
     {
         FinanceRules.ValidateAmount(f.Amount); FinanceRules.ValidateDate(DateOnly.FromDateTime(f.Date));
         if (!Guid.TryParseExact(f.RequestKey, "N", out _)) throw new ArgumentException("Solicitud inválida. Recarga el formulario.");
@@ -84,7 +86,8 @@ public sealed class PortalFinance(PortalDb db, ILogger<PortalFinance> log)
         if (after.Data.Contributions.Count > 0 && FinanceRules.Summarize(after.Data, Today).Available < 0) throw new ArgumentException("La operación dejaría aportes sin respaldo. Libera primero una asignación a metas.");
         await tx.CommitAsync(); log.LogInformation("Cambio financiero {Module} de usuario {UserId}", module, userId);
     }
-    public async Task Delete(long userId, string module, long id)
+    public Task Delete(long userId, string module, long id) => WithSerializationRetry(() => DeleteAttempt(userId,module,id));
+    private async Task DeleteAttempt(long userId, string module, long id)
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var user = await db.Users.SingleAsync(x => x.Id == userId);
@@ -101,6 +104,20 @@ public sealed class PortalFinance(PortalDb db, ILogger<PortalFinance> log)
         var snapshot = await Load(userId);
         if (snapshot.Data.Contributions.Count > 0 && FinanceRules.Summarize(snapshot.Data, Today).Available < 0) throw new ArgumentException("Libera primero aportes: el ingreso respalda tus metas.");
         await tx.CommitAsync(); log.LogInformation("Eliminación financiera {Module} de usuario {UserId}", module, userId);
+    }
+    private async Task WithSerializationRetry(Func<Task> operation)
+    {
+        for (var attempt=0;;attempt++) {
+            try { await operation(); return; }
+            catch (Exception ex) when (ex is OracleException { Number:8177 } || ex is DbUpdateException { InnerException: OracleException { Number:8177 } }) {
+                // The attempt has disposed/rolled back its transaction. Reload and recheck ownership,
+                // revision, request key and available balance before trying the complete operation again.
+                db.ChangeTracker.Clear();
+                if (attempt>=3) throw new DbUpdateException("Oracle no pudo serializar el cambio tras los reintentos. Recarga y vuelve a intentarlo.",ex);
+                log.LogWarning("Conflicto de serializacion Oracle; reintento {Attempt}",attempt+1);
+                await Task.Delay(100*(attempt+1));
+            }
+        }
     }
     public static ProjectionRequest Request(Scenario s) => new(DateOnly.FromDateTime(s.Start), s.Years * 12, s.Capital, s.Income, s.Expense,
         new(s.IncomeChange, s.ExpenseChange, s.Inflation, s.AnnualReturn, s.ContributionChange), s.Contribution);

@@ -1,0 +1,75 @@
+HTTP ORACLE 1: conexion C# autenticada como FINPULSE_WEB_TEST en FREEPDB1
+HTTP ORACLE 2: anonimo sin acceso financiero
+HTTP ORACLE 3: CSRF rechazado
+HTTP ORACLE 4: GET /Account/Register
+HTTP ORACLE 5: registro sin correo
+HTTP ORACLE 6: primer estudiante registrado
+HTTP ORACLE 7: cookie Secure y HttpOnly
+HTTP ORACLE 8: GET /Finance/Index
+HTTP ORACLE 9: GET /Finance/Movements
+HTTP ORACLE 10: GET /Finance/Budgets
+HTTP ORACLE 11: GET /Finance/Goals
+HTTP ORACLE 12: GET /Finance/Projections
+HTTP ORACLE 13: GET /Finance/Reports
+HTTP ORACLE 14: GET /Finance/Movements
+HTTP ORACLE 15: ingreso Bs 1000 persistido
+HTTP ORACLE 16: reenvio idempotente
+HTTP ORACLE 17: GET /Finance/Movements
+HTTP ORACLE 18: un solo ingreso tras reenvio
+HTTP ORACLE 19: GET /Account/Register
+HTTP ORACLE 20: segundo estudiante registrado
+HTTP ORACLE 21: edicion de movimiento ajeno rechazada
+HTTP ORACLE 22: GET /Finance/Movements
+HTTP ORACLE 23: intento de borrado ajeno procesado sin acceso
+HTTP ORACLE 24: GET /Finance/Movements
+HTTP ORACLE 25: movimiento del propietario conservado
+HTTP ORACLE 26: GET /Finance/Edit?module=movements&id=31
+HTTP ORACLE 27: edicion propia persistida
+HTTP ORACLE 28: GET /Finance/Movements
+HTTP ORACLE 29: gasto Bs 250 y descripcion vacia
+HTTP ORACLE 30: GET /Finance/Budgets
+HTTP ORACLE 31: presupuesto persistido
+HTTP ORACLE 32: GET /Finance/Goals
+HTTP ORACLE 33: meta persistida
+HTTP ORACLE 34: GET /Finance/Goals
+HTTP ORACLE 35: aporte Bs 100 persistido
+HTTP ORACLE 36: GET /Finance/Projections
+HTTP ORACLE 37: escenario persistido
+HTTP ORACLE 38: GET /Finance/Projections
+HTTP ORACLE 39: proyeccion a cinco anios Bs 45000
+HTTP ORACLE 40: GET /Finance/Index
+HTTP ORACLE 41: balance Bs 1000 menos Bs 250 = Bs 750
+HTTP ORACLE 42: GET /Finance/Movements
+HTTP ORACLE 43: lectura aislada entre usuarios
+HTTP ORACLE 44: GET /Finance/Index
+HTTP ORACLE 45: saldo y sesion persisten tras reiniciar el proceso
+HTTP ORACLE 46: GET /Finance/Goals
+HTTP ORACLE 47: meta persistente tras reinicio
+HTTP ORACLE 48: GET /Finance/Projections
+HTTP ORACLE 49: escenario persistente tras reinicio
+HTTP ORACLE 50: GET /Finance/Export
+HTTP ORACLE 51: CSV del propietario
+HTTP ORACLE 52: GET /Account/Settings
+HTTP ORACLE 53: preferencias persistidas
+HTTP ORACLE 54: cierre de sesion
+HTTP ORACLE 55: cookie cerrada sin acceso
+HTTP ORACLE 56: GET /Account/Login
+HTTP ORACLE 57: inicio de sesion con usuario y contrasena
+HTTP ORACLE 58: GET /Account/Recover
+HTTP ORACLE 59: recuperacion cambia contrasena y codigo
+HTTP ORACLE 60: recuperacion revoca sesion anterior
+HTTP ORACLE 61: GET /Account/Login
+HTTP ORACLE 62: acceso tras recuperacion
+HTTP ORACLE 63: GET /Finance/Goals
+HTTP ORACLE 64: dos aportes simultaneos Bs 400; solo uno aceptado
+HTTP ORACLE 65: GET /Finance/Index
+HTTP ORACLE 66: concurrencia conserva disponible Bs 250
+HTTP ORACLE 67: GET /Finance/Movements
+HTTP ORACLE 68: movimiento propio temporal guardado
+HTTP ORACLE 69: GET /Finance/Movements
+HTTP ORACLE 70: eliminacion propia persistida en Oracle
+HTTP ORACLE 71: GET /Finance/Movements
+HTTP ORACLE 72: lectura confirma eliminacion propia
+HTTP ORACLE 73: GET /Finance/Index
+HTTP ORACLE 74: eliminacion restaura balance Bs 750 sin afectar aportes
+OK: 74 comprobaciones HTTPS con Oracle real. Reinicio, aislamiento y concurrencia verificados.

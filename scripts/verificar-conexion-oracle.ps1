@@ -1,10 +1,21 @@
 # Diagnóstico SELECT de solo lectura con ODP.NET, sin crear usuarios ni modificar datos.
 param(
-    [ValidateSet('Admin','App')][string]$Modo = 'Admin',
+    [ValidateSet('Admin','App','Web')][string]$Modo = 'Web',
     [switch]$SolicitarClave
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
+if ($Modo -eq 'Web') {
+    if ($SolicitarClave) { throw 'Para entrada segura utiliza scripts/configurar-oracle-web.ps1; este diagnostico web es de solo lectura.' }
+    $previousEnvironment = $env:ASPNETCORE_ENVIRONMENT
+    try {
+        $env:ASPNETCORE_ENVIRONMENT = 'Development'
+        & dotnet run --project (Join-Path $projectRoot 'src\Finpulse.Web') --no-launch-profile -- --verify-oracle
+        if ($LASTEXITCODE -ne 0) { throw 'No se verifico la conexion Oracle del portal.' }
+    } finally { $env:ASPNETCORE_ENVIRONMENT = $previousEnvironment }
+    return
+}
+# Admin y App se conservan exclusivamente para diagnosticar la implementacion anterior.
 $project = Join-Path $projectRoot 'tests\Finpulse.Smoke\Finpulse.Smoke.csproj'
 $reportPath = Join-Path $projectRoot ('docs\oracle-diagnostico-' + $Modo.ToLowerInvariant() + '.json')
 $previousDiagnostic = $env:FINPULSE_ORACLE_DIAGNOSTIC_CONNECTION

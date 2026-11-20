@@ -15,6 +15,7 @@ if(args.Length==2 && args[0]=="--certificate") {
     Console.WriteLine("Certificado efímero de pruebas generado; no se instaló confianza en el sistema.");return;
 }
 if(args.Length==2 && args[0]=="--http") { await HttpChecks.Run(args[1]);return; }
+if(args.Length==1 && args[0]=="--oracle") { await OracleChecks.Run();return; }
 ProjectionChecks.Run();
 await ImportChecks.Run();
 int checks = 0;

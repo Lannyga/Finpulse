@@ -2,6 +2,8 @@
 
 Fecha: 19 de noviembre de 2026.
 
+Actualización de integración: consultar [Integración Oracle Web](07_Integracion_Oracle_Web.md) para el inventario local, instalación segura, respaldo SQLite y pruebas actuales. El contenido siguiente documenta el estado original de la reestructuración.
+
 ## Resultado y límites
 
 Portal ASP.NET Core MVC funcional sobre .NET 10, con SQLite provisional y modelo EF Core Oracle. La solución activa compila solo Finpulse.Web y Finpulse.WebChecks. No depende de WPF ni de las capas anteriores; no incorpora SPA, mediadores, repositorios genéricos ni una API duplicada.

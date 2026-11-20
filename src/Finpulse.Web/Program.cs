@@ -16,7 +16,7 @@ if (OperatingSystem.IsWindows()) protection.ProtectKeysWithDpapi();
 builder.Services.AddControllersWithViews(o => o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 builder.Services.AddAntiforgery(o=>o.Cookie.SecurePolicy=CookieSecurePolicy.Always);
 builder.Services.AddDbContext<PortalDb>(o => {
-    var provider = builder.Configuration["Database:Provider"] ?? "Sqlite";
+    var provider = builder.Configuration["Database:Provider"] ?? "Oracle";
     if (provider == "Oracle") {
         var connection = builder.Configuration.GetConnectionString("Oracle") ?? throw new InvalidOperationException("Configura ConnectionStrings__Oracle fuera del repositorio.");
         var cs = new Oracle.ManagedDataAccess.Client.OracleConnectionStringBuilder(connection);
@@ -46,6 +46,31 @@ builder.Services.AddRateLimiter(o => {
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 var app = builder.Build();
+if (args.Contains("--verify-oracle")) {
+    using var scope = app.Services.CreateScope();
+    try {
+        await OracleVerification.Verify(scope.ServiceProvider.GetRequiredService<PortalDb>(), builder.Configuration["Oracle:ExpectedUser"] ?? "FINPULSE_WEB");
+    } catch (Oracle.ManagedDataAccess.Client.OracleException ex) {
+        Console.Error.WriteLine($"No se verificó Oracle (ORA-{ex.Number:D5}). Revisa servicio, credenciales y esquema; no se usará SQLite.");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
+if (args.Length == 2 && args[0] == "--backup-sqlite") {
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+    if (!db.Database.IsSqlite()) throw new InvalidOperationException("El respaldo exige seleccionar SQLite explícitamente.");
+    if (File.Exists(args[1])) throw new InvalidOperationException("El respaldo ya existe; no se sobrescribirá.");
+    var source = (Microsoft.Data.Sqlite.SqliteConnection)db.Database.GetDbConnection();
+    // Mode=ReadOnly prevents accidental creation of a missing source and includes committed WAL data.
+    var sourceOptions = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(source.ConnectionString) { Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly };
+    using var input = new Microsoft.Data.Sqlite.SqliteConnection(sourceOptions.ConnectionString);
+    using var output = new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = args[1] }.ConnectionString);
+    input.Open(); output.Open(); input.BackupDatabase(output);
+    using var check = output.CreateCommand(); check.CommandText = "PRAGMA integrity_check";
+    if ((string?)check.ExecuteScalar() != "ok") throw new InvalidOperationException("El respaldo no superó la comprobación de integridad.");
+    Console.WriteLine("Respaldo SQLite consistente verificado; origen sin modificaciones."); return;
+}
 if(args.Contains("--create-demo")) {
     if(!app.Environment.IsDevelopment()) throw new InvalidOperationException("La creación de demo requiere el entorno Development.");
     using var scope=app.Services.CreateScope();
@@ -74,6 +99,15 @@ if (args.Contains("--init-local")) {
     if (!db.Database.IsSqlite()) throw new InvalidOperationException("--init-local solo admite SQLite.");
     await db.Database.EnsureCreatedAsync(); await PortalFinance.SeedCategories(db);
     Console.WriteLine("Base local lista; no se crearon usuarios."); return;
+}
+using (var scope = app.Services.CreateScope()) {
+    var db = scope.ServiceProvider.GetRequiredService<PortalDb>();
+    if (db.Database.IsOracle()) {
+        try { await OracleVerification.Verify(db, builder.Configuration["Oracle:ExpectedUser"] ?? "FINPULSE_WEB"); }
+        catch (Oracle.ManagedDataAccess.Client.OracleException ex) {
+            throw new InvalidOperationException($"No se puede iniciar FINPULSE: Oracle no disponible (ORA-{ex.Number:D5}). Revisa la conexion configurada.");
+        }
+    }
 }
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Account/Error"); app.UseHsts(); }
 app.UseHttpsRedirection(); app.UseStaticFiles(); app.UseRouting(); app.UseRateLimiter(); app.UseAuthentication(); app.UseAuthorization();
