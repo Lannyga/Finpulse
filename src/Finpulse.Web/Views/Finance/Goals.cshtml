@@ -1,19 +1,45 @@
-﻿@model PortalSnapshot
+@model PortalSnapshot
 @{
-    ViewData["Title"] = "Metas de ahorro";
-    var f = ViewBag.Form as FinanceForm ?? new() { Date = PortalFinance.Today.AddYears(1).ToDateTime(TimeOnly.MinValue) };
+    ViewData["Title"] = "Metas";
+    var f = ViewBag.Form as FinanceForm ?? new() { Date = PortalFinance.Today.AddMonths(3).ToDateTime(TimeOnly.MinValue) };
     var summary = FinanceRules.Summarize(Model.Data, PortalFinance.Today);
-    var analysis = new FinancialAnalysisService(); var baseline = analysis.Baseline(Model.Data, PortalFinance.Today);
+    string Money(decimal amount) => amount.ToString("N2", CultureInfo.GetCultureInfo("es-BO"));
 }
-<div class="page-heading"><div><span class="eyebrow">DALE UN PORQUÉ A TU AHORRO</span><h1>Pequeños pasos. Grandes metas.</h1><p class="muted">Saldo disponible para asignar: Bs @summary.Available.ToString("N2"). Los aportes reservan dinero, sin duplicar gastos.</p></div></div><partial name="_Errors" />
-<div class="form-layout"><section class="panel"><h2>Una nueva meta</h2><form asp-action="Save" method="post" class="stack"><input type="hidden" name="module" value="goals" /><input type="hidden" name="RequestKey" value="@f.RequestKey" /><input type="hidden" name="Id" value="@f.Id" /><input type="hidden" name="Revision" value="@f.Revision" /><label for="Name">¿Qué quieres lograr?</label><input id="Name" name="Name" value="@f.Name" maxlength="100" required /><label for="Amount">Objetivo (Bs)</label><input id="Amount" name="Amount" type="number" min="0.01" step="0.01" max="1000000000" value="@(f.Amount == 0 ? "" : f.Amount.ToString(CultureInfo.InvariantCulture))" required /><label for="Date">Fecha objetivo</label><input id="Date" name="Date" type="date" value="@f.Date.ToString("yyyy-MM-dd")" required /><label for="Description">Descripción (opcional)</label><textarea id="Description" name="Description" maxlength="500">@f.Description</textarea><button class="btn btn-primary">Guardar mi meta</button><a asp-action="Goals">Nueva / cancelar edición</a></form></section>
-<div class="card-list">@if (Model.Data.Goals.Count == 0) { <section class="panel empty"><h2>Tu ahorro merece un destino.</h2><p>Un equipo para estudiar, un viaje o un fondo de tranquilidad. Empieza por ponerle nombre.</p></section> }
-@foreach (var g in Model.Data.Goals.OrderBy(x => x.Deadline)) {
-    var contributions = Model.Data.Contributions.Where(x => x.GoalId == g.Id).ToArray(); var saved = contributions.Sum(x => x.Amount); var percent = Math.Min(saved / g.Target * 100, 100);
-    <section class="panel"><div class="section-heading"><div><span class="eyebrow">HASTA @g.Deadline.ToString("dd/MM/yyyy")</span><h2>@g.Name</h2></div><span class="pill">@percent.ToString("N0") %</span></div><p class="muted">@g.Description</p><div class="goal-total">Bs @saved.ToString("N2") <span class="muted small">/ @g.Target.ToString("N2")</span></div><progress max="100" value="@percent.ToString(CultureInfo.InvariantCulture)" aria-label="Avance de @g.Name"></progress>
-    @if (baseline.Sufficient) { var estimate = analysis.EstimateGoal(g, saved, new(PortalFinance.Today, 120, 0, baseline.Income, baseline.Expense, new())); <p class="small">@estimate.Status · Aporte requerido: @(estimate.RequiredMonthly.HasValue ? "Bs " + estimate.RequiredMonthly.Value.ToString("N2") + "/mes" : estimate.RequiredNote)</p><p class="muted small">Estimación con promedio de tres meses completos, sin rendimiento. No es un resultado garantizado.</p> }
-    else { <p class="small muted">@baseline.Explanation</p> }
-    <form asp-action="Save" method="post" class="inline-form"><input type="hidden" name="module" value="contributions" /><input type="hidden" name="GoalId" value="@g.Id" /><input type="hidden" name="RequestKey" value="@Guid.NewGuid().ToString("N")" /><input type="hidden" name="Date" value="@PortalFinance.Today.ToString("yyyy-MM-dd")" /><label for="contribution-@g.Id">Asignar aporte (Bs)</label><input id="contribution-@g.Id" name="Amount" type="number" step="0.01" min="0.01" max="1000000000" required /><button class="btn btn-secondary">Asignar</button></form>
-    <details><summary>Aportes (@contributions.Length) y opciones</summary>@foreach (var c in contributions) { <div class="transaction"><span>@c.Date.ToString("dd/MM/yyyy") · Bs @c.Amount.ToString("N2")</span><form asp-action="Delete" method="post"><input type="hidden" name="module" value="contributions" /><input type="hidden" name="id" value="@c.Id" /><button class="btn btn-quiet" aria-label="Liberar aporte de @c.Amount bolivianos de @g.Name">Liberar</button></form></div> }<form asp-action="Delete" method="post" data-confirm="¿Eliminar esta meta? Primero debes liberar todos sus aportes."><input type="hidden" name="module" value="goals" /><input type="hidden" name="id" value="@g.Id" /><a asp-action="Edit" asp-route-module="goals" asp-route-id="@g.Id" class="btn btn-quiet">Editar</a><button class="btn btn-quiet">Eliminar meta</button></form></details></section>
-}</div></div>
-
+<div class="page-heading"><div><span class="eyebrow">TUS PLANES</span><h1>Ahorra para lo que quieres</h1><p class="muted">Libros, materiales, una computadora… Guarda un poco cada vez que puedas.</p></div><span class="pill">Libre para guardar: Bs @Money(summary.Available)</span></div>
+<div class="form-layout">
+    <section class="panel"><h2>@(f.Id == 0 ? "Nueva meta" : "Editar meta")</h2>
+        <form asp-action="Save" method="post" class="stack">
+            <input type="hidden" name="module" value="goals" /><input type="hidden" name="RequestKey" value="@f.RequestKey" /><input type="hidden" name="Id" value="@f.Id" /><input type="hidden" name="Revision" value="@f.Revision" />
+            <label for="Name">Nombre de tu meta</label><input id="Name" name="Name" value="@f.Name" maxlength="120" placeholder="Ej.: computadora para estudiar" required />
+            <label for="Amount">¿Cuánto necesitas? (Bs)</label><input id="Amount" name="Amount" type="number" min="0.01" max="1000000000" step="0.01" value="@(f.Amount == 0 ? "" : f.Amount.ToString(CultureInfo.InvariantCulture))" required />
+            <label for="Date">¿Para cuándo?</label><input id="Date" name="Date" type="date" value="@f.Date.ToString("yyyy-MM-dd")" required />
+            <label for="Description">Nota (opcional)</label><textarea id="Description" name="Description" maxlength="500">@f.Description</textarea>
+            <button class="btn btn-primary">Guardar meta</button>
+            @if (f.Id > 0) { <a asp-action="Goals">Cancelar edición</a> }
+        </form>
+    </section>
+    <div class="card-list">
+        @if (Model.Data.Goals.Count == 0) { <section class="panel empty"><h2>Tu primera meta empieza aquí.</h2><p>Ponle nombre a algo que quieras y elige cuánto necesitas.</p></section> }
+        @foreach (var goal in Model.Data.Goals.OrderBy(x => x.Deadline)) {
+            var contributions = Model.Data.Contributions.Where(x => x.GoalId == goal.Id).ToArray();
+            var saved = contributions.Sum(x => x.Amount);
+            var percent = Math.Min(saved / goal.Target * 100, 100);
+            <section class="panel">
+                <div class="section-heading"><div><span class="eyebrow">PARA EL @goal.Deadline.ToString("dd/MM/yyyy")</span><h2>@goal.Name</h2></div><span class="pill">@(saved >= goal.Target ? "¡Lo lograste!" : percent.ToString("N0") + " %")</span></div>
+                @if (!string.IsNullOrWhiteSpace(goal.Description)) { <p class="muted">@goal.Description</p> }
+                <div class="goal-total">Bs @Money(saved) <span class="muted small">de Bs @Money(goal.Target)</span></div>
+                <progress max="100" value="@percent.ToString(CultureInfo.InvariantCulture)" aria-label="Avance de @goal.Name"></progress>
+                <p class="small muted">Lo guardado sigue siendo tuyo. No se cuenta como un gasto.</p>
+                <form asp-action="Save" method="post" class="inline-form">
+                    <input type="hidden" name="module" value="contributions" /><input type="hidden" name="GoalId" value="@goal.Id" /><input type="hidden" name="RequestKey" value="@Guid.NewGuid().ToString("N")" /><input type="hidden" name="Date" value="@PortalFinance.Today.ToString("yyyy-MM-dd")" />
+                    <label for="contribution-@goal.Id">Guardar dinero (Bs)</label><input id="contribution-@goal.Id" name="Amount" type="number" min="0.01" max="1000000000" step="0.01" required /><button class="btn btn-secondary">Sumar ahorro</button>
+                </form>
+                <details><summary>Ver ahorros y opciones</summary>
+                    @foreach (var contribution in contributions) { <div class="transaction"><span>@contribution.Date.ToString("dd/MM/yyyy") · Bs @Money(contribution.Amount)</span><form asp-action="Delete" method="post"><input type="hidden" name="module" value="contributions" /><input type="hidden" name="id" value="@contribution.Id" /><button class="btn btn-quiet" aria-label="Retirar @Money(contribution.Amount) bolivianos de @goal.Name">Retirar</button></form></div> }
+                    <p class="small muted">Retirar devuelve ese dinero a tu saldo libre. Retira todo antes de eliminar la meta.</p>
+                    <div class="actions"><a class="btn btn-quiet" asp-action="Edit" asp-route-module="goals" asp-route-id="@goal.Id">Editar meta</a><form asp-action="Delete" method="post" data-confirm="¿Eliminar esta meta? Primero retira lo que guardaste."><input type="hidden" name="module" value="goals" /><input type="hidden" name="id" value="@goal.Id" /><button class="btn btn-quiet">Eliminar meta</button></form></div>
+                </details>
+            </section>
+        }
+    </div>
+</div>

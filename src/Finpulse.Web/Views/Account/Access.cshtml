@@ -1,28 +1,18 @@
 @model Credentials
 @{
-    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "Login";
-    bool register = action == "Register", recover = action == "Recover";
-    ViewData["Title"] = register ? "Crea tu cuenta" : recover ? "Recupera tu cuenta" : "Bienvenido de nuevo";
+    var register = ViewContext.RouteData.Values["action"]?.ToString() == "Register";
+    var action = register ? "Register" : "Login";
+    ViewData["Title"] = register ? "Crea tu cuenta" : "Entra a tu espacio";
 }
 <div class="auth-grid">
-<section class="auth-story"><a class="brand" href="/"> <img src="~/mark.svg" alt="" width="48" height="48" asp-append-version="true" />FINPULSE.</a><span class="eyebrow">MENOS ESTRÉS. MÁS FUTURO.</span><h1>Haz crecer<br />lo que<br /><em>te importa.</em></h1><p>Un espacio para entender tu dinero, construir hábitos y acercarte a tus metas.</p><div class="auth-art" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><p class="small">Finanzas claras para tu vida de estudiante.</p></section>
-<section class="auth-card"><span class="eyebrow">TU PRÓXIMO PASO</span><h2>@ViewData["Title"]</h2><p class="muted">@(register ? "Solo necesitas un nombre de usuario y una contraseña." : recover ? "Usa tu código de recuperación y elige una nueva contraseña." : "Entra y sigue construyendo tu tranquilidad financiera.")</p>
-<form method="post" asp-action="@action" class="stack">
-    <div asp-validation-summary="All" class="validation" role="alert" tabindex="-1"></div>
-    <label asp-for="Username">Nombre de usuario</label><input asp-for="Username" autocomplete="username" required pattern="[a-zA-Z0-9_.-]{3,40}" maxlength="40" /><span asp-validation-for="Username"></span>
-    @if (recover) { <label asp-for="RecoveryCode">Código de recuperación</label><input asp-for="RecoveryCode" autocomplete="off" required maxlength="48" /> }
-    <label asp-for="Password">@(recover ? "Nueva contraseña" : "Contraseña")</label><input asp-for="Password" type="password" autocomplete="@(register || recover ? "new-password" : "current-password")" required minlength="12" maxlength="128" /><span asp-validation-for="Password"></span>
-    @if (register || recover) { <label asp-for="Confirm">Confirma tu contraseña</label><input asp-for="Confirm" type="password" autocomplete="new-password" required minlength="12" maxlength="128" /><p class="small muted">De 12 a 128 caracteres. Puedes usar tu gestor de contraseñas.</p> }
-    <button class="btn btn-primary" type="submit">@(register ? "Crear mi cuenta" : recover ? "Recuperar acceso" : "Entrar a mi espacio") <span aria-hidden="true">↗</span></button>
-</form>
-@if (!register && !recover && ViewBag.DemoAvailable == true) {
-    <section class="demo-access" aria-labelledby="demo-title">
-        <h3 id="demo-title">Prueba FINPULSE en un clic</h3>
-        <p class="small muted">Explora seis meses de historial ficticio, presupuestos y metas.</p>
-        <form asp-action="DemoLogin" method="post"><button class="btn btn-secondary" type="submit" data-pending-label="Entrando a la demo…">Entrar a la cuenta demo <span aria-hidden="true">↗</span></button></form>
-        <p class="small muted demo-note">Acceso de demostración local. No necesitas escribir la contraseña.</p>
+    <section class="auth-story"><a class="brand" href="/"><img src="~/mark.svg" alt="" width="48" height="48" />FINPULSE.</a><span class="eyebrow">PARA TU VIDA DE ESTUDIANTE</span><h1>Tu dinero.<br />Tus planes.<br /><em>Más claros.</em></h1><p>Anota lo que recibes, mira en qué gastas y ahorra para lo que necesitas.</p><div class="auth-art" aria-hidden="true"><span></span><span></span><span></span><span></span></div><p class="small">Un paso a la vez, sin complicarte.</p></section>
+    <section class="auth-card"><span class="eyebrow">BIENVENIDO A FINPULSE</span><h2>@ViewData["Title"]</h2><p class="muted">@(register ? "Solo necesitas un usuario y una contraseña." : "Tu dinero y tus metas, en un solo lugar.")</p>
+        <form method="post" asp-action="@action" class="stack">
+            <label asp-for="Username">Usuario</label><input asp-for="Username" autocomplete="username" required pattern="[a-zA-Z0-9_.-]{3,40}" maxlength="40" /><span asp-validation-for="Username"></span>
+            <label asp-for="Password">Contraseña</label><input asp-for="Password" type="password" autocomplete="@(register ? "new-password" : "current-password")" required minlength="6" maxlength="128" /><span asp-validation-for="Password"></span>
+            @if (register) { <label asp-for="Confirm">Repite tu contraseña</label><input asp-for="Confirm" type="password" autocomplete="new-password" required minlength="6" maxlength="128" /><p class="small muted">Usa de 6 a 128 caracteres. Guarda tu contraseña en un lugar seguro.</p> }
+            <button class="btn btn-primary">@(register ? "Crear cuenta" : "Entrar") <span aria-hidden="true">↗</span></button>
+        </form>
+        <div class="auth-links"><a asp-action="@(register ? "Login" : "Register")">@(register ? "Ya tengo una cuenta" : "Crear una cuenta")</a></div>
     </section>
-}
-<div class="auth-links"><a asp-action="@(register ? "Login" : "Register")">@(register ? "Ya tengo una cuenta" : "Crear una cuenta")</a><a asp-action="Recover">Recuperar acceso</a></div>
-<p class="small muted">Sin correo electrónico. Al registrarte recibirás un código privado para recuperar tu cuenta.</p>
-</section></div>
+</div>

@@ -1,6 +1,8 @@
-@{ ViewData["Title"] = "Configuración"; }
-<div class="page-heading"><div><span class="eyebrow">A TU MEDIDA</span><h1>Configuración de cuenta</h1><p class="muted">Tu usuario: @User.Identity?.Name · Moneda: bolivianos (BOB).</p></div></div>
-<div class="two-column">
-<section class="panel"><h2>Alertas de presupuesto</h2><p class="muted">Elige desde qué porcentaje de uso mostrar un aviso.</p><form asp-action="Settings" method="post" class="stack"><label for="warning">Umbral de aviso (%)</label><input id="warning" name="warning" type="number" min="1" max="99" step="1" value="@ViewBag.Warning" required /><button class="btn btn-primary">Guardar preferencias</button></form></section>
-<section class="panel"><h2>Cambiar contraseña</h2><p class="muted">También se renovará tu código de recuperación y se cerrarán las otras sesiones.</p><form asp-action="ChangePassword" method="post" class="stack"><label for="currentPassword">Contraseña actual</label><input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required maxlength="128" /><label for="password">Nueva contraseña</label><input id="password" name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" /><label for="confirm">Confirmación</label><input id="confirm" name="confirm" type="password" autocomplete="new-password" required minlength="12" maxlength="128" /><button class="btn btn-primary">Actualizar contraseña</button></form></section>
-</div>
+@{ ViewData["Title"] = "Mi cuenta"; }
+<div class="page-heading"><div><span class="eyebrow">MI CUENTA</span><h1>@User.Identity?.Name</h1><p class="muted">Puedes cambiar tu contraseña aquí.</p></div><a class="btn btn-secondary" asp-controller="Finance" asp-action="Index">Volver al resumen</a></div>
+<section class="panel account-panel"><h2>Cambiar contraseña</h2><form asp-action="ChangePassword" method="post" class="stack">
+    <label for="currentPassword">Contraseña actual</label><input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required maxlength="128" />
+    <label for="password">Nueva contraseña</label><input id="password" name="password" type="password" autocomplete="new-password" required minlength="6" maxlength="128" />
+    <label for="confirm">Repite la nueva contraseña</label><input id="confirm" name="confirm" type="password" autocomplete="new-password" required minlength="6" maxlength="128" />
+    <p class="small muted">De 6 a 128 caracteres. Al cambiarla se cerrarán tus otras sesiones.</p><button class="btn btn-primary">Guardar contraseña</button>
+</form></section>

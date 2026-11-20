@@ -1,6 +1,6 @@
 # Dependencias web locales
 
-- Bootstrap 5.3.8, MIT: https://github.com/twbs/bootstrap/blob/v5.3.8/LICENSE
 - Chart.js 4.5.1, MIT: https://github.com/chartjs/Chart.js/blob/v4.5.1/LICENSE.md
+- Plus Jakarta Sans (student-font.ttf), SIL Open Font License: licencia incluida en FONT-LICENSE.txt. Fuente oficial: https://github.com/google/fonts/tree/main/ofl/plusjakartasans
 
-Distribuciones oficiales descargadas desde jsDelivr. Se conservan sus encabezados de licencia. El portal las sirve localmente y su CSP no permite scripts remotos. No se necesita Bootstrap JavaScript porque los componentes utilizados no lo requieren.
+Se conserva el encabezado de licencia. El portal sirve Chart.js localmente; los estilos son CSS propio.

@@ -1,7 +1,8 @@
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 using Finpulse.Web.Data;
 using Finpulse.Web.Models;
-using Finpulse.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -12,81 +13,114 @@ using Microsoft.EntityFrameworkCore;
 namespace Finpulse.Web.Controllers;
 
 [EnableRateLimiting("access")]
-public sealed class AccountController(AccountService accounts, PortalDb db, IWebHostEnvironment environment, IConfiguration configuration) : Controller
+public sealed class AccountController(AccountService accounts, PortalDb db) : Controller
 {
-    [HttpGet] public async Task<IActionResult> Login()
-    {
-        ViewBag.DemoAvailable = await DemoUser() is not null;
-        return View("Access", new Credentials());
-    }
+    [HttpGet] public IActionResult Login() => View("Access", new Credentials());
     [HttpGet] public IActionResult Register() => View("Access", new Credentials());
-    [HttpGet] public IActionResult Recover() => View("Access", new Credentials());
-    [HttpPost] public async Task<IActionResult> Register(Credentials form)
+
+    [HttpPost]
+    public async Task<IActionResult> Register(Credentials form)
     {
-        if (ModelState.IsValid) try {
-            var result = await accounts.Register(form); await SignIn(result.User);
-            ViewBag.Code = result.Code; return View("RecoveryCode");
-        } catch (ArgumentException e) { ModelState.AddModelError("Username", e.Message); }
+        if (ModelState.IsValid) {
+            try {
+                await SignIn(await accounts.Register(form));
+                return RedirectToAction("Index", "Finance");
+            } catch (ArgumentException e) { ModelState.AddModelError("Username", e.Message); }
+        }
         return View("Access", form);
     }
-    [HttpPost] public async Task<IActionResult> Login(Credentials form, string? returnUrl)
+
+    [HttpPost]
+    public async Task<IActionResult> Login(Credentials form, string? returnUrl)
     {
         if (ModelState.IsValid && await accounts.Verify(form) is Student user) {
-            await SignIn(user); return Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl) : RedirectToAction("Index", "Finance");
+            await SignIn(user);
+            return Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl) : RedirectToAction("Index", "Finance");
         }
-        ModelState.AddModelError("", "Credenciales incorrectas o acceso temporalmente restringido.");
-        ViewBag.DemoAvailable = await DemoUser() is not null;
+        ModelState.AddModelError("", "Usuario o contraseña incorrectos, o acceso temporalmente bloqueado.");
         return View("Access", form);
     }
-    [HttpPost] public async Task<IActionResult> DemoLogin()
+
+    [Authorize, HttpGet] public IActionResult Settings() => View();
+
+    [Authorize, HttpPost]
+    public async Task<IActionResult> ChangePassword(string currentPassword, string password, string confirm)
     {
-        var demo = await DemoUser();
-        if (demo is null) return NotFound();
-        await SignIn(demo);
-        return RedirectToAction("Index", "Finance");
-    }
-    [HttpPost] public async Task<IActionResult> Recover(Credentials form)
-    {
-        if (ModelState.IsValid && form.Password == form.Confirm && await accounts.Verify(form, true) is Student user) {
-            try { ViewBag.Code = await accounts.Reset(user, form.Password); }
-            catch (DbUpdateConcurrencyException) { return Conflict("La cuenta cambió. Intenta de nuevo."); }
-            await HttpContext.SignOutAsync(); return View("RecoveryCode");
+        var user = await db.Users.SingleAsync(x => x.Id == long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+        if (password is null || password.Length is < 6 or > 128 || password != confirm ||
+            await accounts.Verify(new() { Username = user.Username, Password = currentPassword ?? "" }) is null) {
+            TempData["Message"] = "Revisa tu contraseña actual y confirma la nueva (6 a 128 caracteres).";
+        } else {
+            try {
+                await accounts.ChangePassword(user, password);
+                await SignIn(user);
+                TempData["Message"] = "Contraseña actualizada.";
+            } catch (DbUpdateConcurrencyException) { TempData["Message"] = "La cuenta cambió. Inténtalo otra vez."; }
         }
-        ModelState.AddModelError("", "No se pudo recuperar la cuenta. Revisa los datos o inténtalo más tarde."); return View("Access", form);
+        return RedirectToAction(nameof(Settings));
     }
-    [Authorize, HttpGet] public async Task<IActionResult> Settings()
+
+    [Authorize, HttpPost]
+    public async Task<IActionResult> Logout()
     {
-        var user = await Current(); ViewBag.Warning = user.WarningPercent; return View();
+        await HttpContext.SignOutAsync();
+        return RedirectToAction(nameof(Login));
     }
-    [Authorize, HttpPost] public async Task<IActionResult> Settings(decimal warning)
-    {
-        if (warning is <= 0 or >= 100) return BadRequest("El umbral debe estar entre 0 y 100.");
-        var user = await Current(); user.WarningPercent = warning; await db.SaveChangesAsync(); TempData["Message"] = "Preferencias guardadas."; return RedirectToAction(nameof(Settings));
-    }
-    [Authorize, HttpPost] public async Task<IActionResult> ChangePassword(string currentPassword, string password, string confirm)
-    {
-        var user = await Current();
-        if (password is null || password.Length is < 12 or > 128 || password != confirm ||
-            await accounts.Verify(new() { Username = user.Username, Password = currentPassword }) is null) {
-            TempData["Message"] = "Revisa la contraseña actual y la nueva confirmación (12 a 128 caracteres)."; return RedirectToAction(nameof(Settings));
-        }
-        ViewBag.Code = await accounts.Reset(user, password); await SignIn(user); return View("RecoveryCode");
-    }
-    [Authorize, HttpPost] public async Task<IActionResult> Logout() { await HttpContext.SignOutAsync(); return RedirectToAction(nameof(Login)); }
-    [HttpGet] public IActionResult Error() { Response.StatusCode = 500; return Content("No se pudo completar la operación. Revisa la configuración y el registro del servidor."); }
-    private Task<Student> Current() => db.Users.SingleAsync(x => x.Id == long.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!));
-    private async Task<Student?> DemoUser()
-    {
-        // Explicit local demonstration only: no password in HTML, no arbitrary account ID, no production bypass.
-        if (!environment.IsDevelopment() || !db.Database.IsSqlite() ||
-            HttpContext.Connection.RemoteIpAddress is not { } address || !System.Net.IPAddress.IsLoopback(address)) return null;
-        var username = configuration["Demo:Username"];
-        if (string.IsNullOrEmpty(username) || !username.StartsWith("demo_6meses_", StringComparison.Ordinal)) return null;
-        var normalized = AccountService.Normalize(username);
-        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.NormalizedName == normalized);
-        if (user is null || user.LockedUntil > DateTime.UtcNow) return null;
-        return await db.Entries.AnyAsync(x => x.UserId == user.Id && x.Description.StartsWith("[DEMO FICTICIA]")) ? user : null;
-    }
+
+    [HttpGet] public IActionResult Error() { Response.StatusCode = 500; return Content("No se pudo completar la operación. Inténtalo más tarde."); }
+
     private Task SignIn(Student user) => HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-        new ClaimsPrincipal(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, user.Id.ToString()), new(ClaimTypes.Name, user.Username), new("version", user.SessionVersion)], CookieAuthenticationDefaults.AuthenticationScheme)));
+        new ClaimsPrincipal(new ClaimsIdentity([
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()), new(ClaimTypes.Name, user.Username), new("version", user.SessionVersion)
+        ], CookieAuthenticationDefaults.AuthenticationScheme)));
+}
+
+
+public sealed class AccountService(PortalDb db, PasswordHasher<Student> hasher, ILogger<AccountService> log)
+{
+    public static string Normalize(string name) => name.Trim().ToUpperInvariant();
+
+    public async Task<Student> Register(Credentials form)
+    {
+        if (form.Password != form.Confirm) throw new ArgumentException("La confirmación no coincide.");
+        var user = new Student { Username = form.Username.Trim(), NormalizedName = Normalize(form.Username) };
+        user.PasswordHash = hasher.HashPassword(user, form.Password);
+        db.Users.Add(user);
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateException) { throw new ArgumentException("No se pudo registrar ese nombre de usuario."); }
+        log.LogInformation("Cuenta registrada {UserId}", user.Id);
+        return user;
+    }
+
+    public async Task<Student?> Verify(Credentials form)
+    {
+        var name = Normalize(form.Username);
+        var user = await db.Users.SingleOrDefaultAsync(x => x.NormalizedName == name);
+        var candidate = user ?? new Student();
+        // Unknown accounts also perform password hashing.
+        var hash = user?.PasswordHash ?? hasher.HashPassword(candidate, Convert.ToHexString(RandomNumberGenerator.GetBytes(24)));
+        var result = hasher.VerifyHashedPassword(candidate, hash, form.Password);
+        if (user is null || user.LockedUntil > DateTime.UtcNow) return null;
+        if (result == PasswordVerificationResult.Failed) {
+            log.LogWarning("Acceso rechazado para usuario {UserId}", user.Id);
+            user.Failures++;
+            if (user.Failures >= 5) { user.Failures = 0; user.LockedUntil = DateTime.UtcNow.AddMinutes(15); }
+        } else {
+            user.Failures = 0;
+            user.LockedUntil = null;
+            if (result == PasswordVerificationResult.SuccessRehashNeeded)
+                user.PasswordHash = hasher.HashPassword(user, form.Password);
+        }
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateConcurrencyException) { return null; }
+        return result != PasswordVerificationResult.Failed ? user : null;
+    }
+
+    public async Task ChangePassword(Student user, string password)
+    {
+        user.PasswordHash = hasher.HashPassword(user, password);
+        user.SessionVersion = Guid.NewGuid().ToString("N");
+        await db.SaveChangesAsync();
+        log.LogInformation("Contraseña actualizada para usuario {UserId}", user.Id);
+    }
 }

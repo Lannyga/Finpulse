@@ -1,37 +1,44 @@
 <!DOCTYPE html>
-<html lang="es" data-bs-theme="dark">
+<html lang="es">
 <head>
-    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] · FINPULSE</title>
     <link rel="icon" href="~/favicon.svg" type="image/svg+xml" asp-append-version="true" />
-    <link rel="stylesheet" href="~/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <script src="~/lib/chart.umd.js" defer></script><script src="~/js/site.js" asp-append-version="true" defer></script>
+    <script src="~/lib/chart.umd.js" defer></script>
+    <script src="~/js/site.js" asp-append-version="true" defer></script>
 </head>
 <body>
 <a href="#main" class="skip-link">Saltar al contenido</a>
 @if (User.Identity?.IsAuthenticated == true) {
-<aside class="sidebar">
-    <a class="brand" asp-controller="Finance" asp-action="Index"><img src="~/mark.svg" width="44" height="44" alt="" asp-append-version="true" />FINPULSE<span class="brand-dot">.</span></a>
-    <p class="nav-caption">TU ESPACIO FINANCIERO</p>
-    <nav aria-label="Principal">
-    @foreach (var item in new[] { ("Index", "Resumen", "01"), ("Movements", "Movimientos", "02"), ("Budgets", "Presupuestos", "03"), ("Goals", "Metas de ahorro", "04"), ("Projections", "Proyecciones", "05"), ("Reports", "Reportes", "06") }) {
-        <a asp-controller="Finance" asp-action="@item.Item1" class="@(ViewContext.RouteData.Values["action"]?.ToString() == item.Item1 ? "active" : "")"><span class="nav-number" aria-hidden="true">@item.Item3</span>@item.Item2</a>
-    }
-    </nav>
-    <div class="sidebar-bottom"><div class="forest-note"><span class="eyebrow">PASO A PASO</span><p>Tu futuro empieza<br />con lo que haces hoy.</p><span class="small">Organiza. Ahorra. Crece.</span></div>
-    <a asp-controller="Account" asp-action="Settings">Configuración de cuenta</a>
-    </div>
-</aside>
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+    var module = ViewContext.HttpContext.Request.Query["module"].ToString();
+    <aside class="sidebar">
+        <a class="brand" asp-controller="Finance" asp-action="Index"><img src="~/mark.svg" width="44" height="44" alt="" />FINPULSE<span class="accent">.</span></a>
+        <p class="nav-caption">TU DINERO, MÁS CLARO</p>
+        <nav aria-label="Principal">
+        @foreach (var item in new[] { ("Index", "Resumen", "01", ""), ("Movements", "Movimientos", "02", "movements"), ("Goals", "Metas", "03", "goals") }) {
+            var active = ViewData["Title"]?.ToString() == item.Item2 || action == item.Item1 || (action is "Edit" or "Save" && module == item.Item4);
+            <a asp-controller="Finance" asp-action="@item.Item1" class="@(active ? "active" : "")" aria-current="@(active ? "page" : null)"><span class="nav-number" aria-hidden="true">@item.Item3</span>@item.Item2</a>
+        }
+        </nav>
+        <div class="sidebar-bottom"><p>Para tus clases,<br />tus planes y tu día a día.</p><span class="small muted">Un paso a la vez.</span></div>
+    </aside>
 }
 <div class="@(User.Identity?.IsAuthenticated == true ? "workspace" : "auth-workspace")">
 @if (User.Identity?.IsAuthenticated == true) {
-    <header class="topbar"><span class="topbar-trail">Finanzas personales <span class="muted">/ @ViewData["Title"]</span></span><div class="session-actions"><span class="account"><span class="status-dot" aria-hidden="true"></span><span class="account-name">@User.Identity.Name</span><span class="avatar" aria-hidden="true">@User.Identity.Name?[..1].ToUpperInvariant()</span></span><form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-quiet session-logout" type="submit" data-pending-label="Cerrando sesión…">Cerrar sesión</button></form></div></header>
+    <header class="topbar">
+        <span>Mi espacio <span class="muted">/ @ViewData["Title"]</span></span>
+        <div class="session-actions"><a class="account" asp-controller="Account" asp-action="Settings" aria-label="Cuenta de @User.Identity.Name">@User.Identity.Name <span class="avatar" aria-hidden="true">@User.Identity.Name?[..1].ToUpperInvariant()</span></a><form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-quiet" data-pending-label="Saliendo…">Salir</button></form></div>
+    </header>
 }
 <main id="main" tabindex="-1">
     @if (TempData["Message"] is string message) { <div class="notice" role="status">@message</div> }
+    <div asp-validation-summary="All" class="validation" role="alert" tabindex="-1"></div>
     @RenderBody()
 </main>
-<footer>FINPULSE <span>·</span> Un mejor hábito, un mejor futuro. <span>BOB / Bs</span></footer>
+<footer>FINPULSE <span>·</span> Tu dinero, a tu ritmo. <span>Montos en bolivianos (Bs)</span></footer>
 </div>
-</body></html>
+</body>
+</html>

@@ -1,47 +1,63 @@
-# FINPULSE · Portal financiero estudiantil
+# FINPULSE
 
-ASP.NET Core MVC, Razor y C# sobre .NET 10. Interfaz oscura Bento con identidad verde bosque, Bootstrap y Chart.js locales. `FINPULSE.slnx` contiene un proyecto web y un ejecutable independiente de pruebas.
+Una tarea universitaria para organizar el dinero de un estudiante. Tres pantallas:
 
-**Estado:** conectado y verificado con Oracle en FREEPDB1. FINPULSE_WEB es el esquema operativo y FINPULSE_WEB_TEST contiene las pruebas sintéticas. Pasaron 74 comprobaciones HTTPS con persistencia tras reinicio, aislamiento y concurrencia, además de restricciones y rollback SQL. Consulta el [informe de integración real](docs/07_Integracion_Oracle_Web.md). SQLite y sus datos anteriores están respaldados y conservados.
+- **Resumen:** cuánto tienes, cuánto recibiste y gastaste este mes, un gráfico de seis meses y un consejo según tus gastos.
+- **Movimientos:** anotar, editar y eliminar ingresos y gastos por categoría.
+- **Metas:** ahorrar para libros, materiales o una computadora, ver el avance y retirar lo guardado.
 
-## Iniciar desde VS Code
+Sin presupuestos, proyecciones, CSV ni códigos de emergencia. La cuenta usa usuario y contraseña de 6 a 128 caracteres (también admite solo números); desde el nombre de usuario en la barra superior se puede cambiar la contraseña.
+
+## Ejecutar
+
+Requiere .NET 10 y Oracle con el esquema FINPULSE_WEB en `localhost:1521/FREEPDB1`.
+Esta máquina ya tiene la conexión en ASP.NET Core User Secrets. No reinstales el esquema.
 
 ```powershell
 dotnet restore FINPULSE.slnx
 dotnet run --project src/Finpulse.Web
 ```
 
-Abre https://localhost:7240. El portal local ya tiene Oracle configurado mediante ASP.NET Core User Secrets y HTTPS verificado. Al arrancar comprueba la conexión real a FINPULSE_WEB. En otra máquina se deben preparar credenciales propias; no están incluidas en Git. No repitas la instalación de los esquemas existentes.
+Abre https://localhost:7240 en Edge. HTTPS usa el certificado local de desarrollo de .NET.
+En otra máquina configura `ConnectionStrings:Oracle` con User Secrets y una cuenta Oracle de privilegios mínimos, nunca SYS/SYSTEM.
+El script [sql/esquema.sql](sql/esquema.sql) sirve únicamente para preparar un esquema vacío. Después ejecuta `dotnet run --project src/Finpulse.Web -- --seed-categories` una vez para crear las categorías.
 
-Regístrate con usuario y contraseña de 12 a 128 caracteres. Guarda el código de recuperación mostrado una sola vez. El portal no solicita ni almacena correo.
+## Cómo explicar el código
 
-La inicialización operativa solo agregó categorías. Las cuentas y los datos sintéticos de verificación están en el esquema separado FINPULSE_WEB_TEST.
+Un proyecto ASP.NET Core MVC con C#, Razor y Oracle mediante Entity Framework Core. CSS propio con cuadrícula Bento y tipografía Plus Jakarta Sans local; Chart.js local dibuja el gráfico. No hay cliente de escritorio ni SQLite.
 
-## Funciones
-
-- Dashboard, historial y recomendaciones justificadas con tus datos.
-- Ingresos, gastos, presupuestos y metas: registro, edición y eliminación.
-- Aportes y liberación de reservas para metas, sin duplicar gastos.
-- Escenarios persistentes a 1, 3, 5 y 10 años con motor mensual, inflación, rendimiento y cambios de flujos; tablas y CSV.
-- Reportes, preferencias de alertas y cambio/recuperación de contraseña con revocación de sesiones.
-- Aislamiento de datos, CSRF, bloqueo de acceso, idempotencia y concurrencia.
-
-## Pruebas
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validar-oracle-http.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validar-restricciones-oracle.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verificar-reanudacion-oracle.ps1
+```text
+src/Finpulse.Web/
+  Program.cs                       Inicia y configura la aplicación.
+  Models.cs                        Datos y formularios.
+  Data/PortalDb.cs                 Cuatro tablas y conexión Oracle.
+  Controllers/AccountController.cs Registro, acceso y contraseña.
+  Controllers/FinanceController.cs Formularios de movimientos y metas.
+  Services/PortalFinance.cs        Guardado y cálculos de dinero.
+  Views/         Tres pantallas y formularios de cuenta.
+  wwwroot/       CSS, JavaScript, gráfico y marca.
+tests/Finpulse.WebChecks/   Pruebas de cálculos y Oracle/HTTPS.
+sql/esquema.sql            Instalación en un esquema nuevo.
 ```
 
-El primer comando utiliza la conexión local segura de FINPULSE_WEB_TEST, genera un certificado efímero sin instalar confianza, verifica el portal por HTTPS y reinicia su proceso para comprobar persistencia. El segundo comprueba restricciones con rollback; el tercero confirma que la reanudación conserva los objetos. Los resultados están en `docs/qa/web-oracle-*`. Datos temporales en `tests/.qa/`, excluidos de Git. La excepción de certificado se limita al cliente de pruebas local.
+Son **seis archivos C# principales**. Para exponer: empieza por `Models.cs` (qué guardamos), sigue por `PortalDb.cs` (dónde se guarda), `PortalFinance.cs` (qué calculamos) y los controladores (cómo llegan los formularios). Las vistas Razor muestran el resultado. Las clases relacionadas están juntas en el mismo archivo, con nombres y métodos separados para encontrarlas fácilmente.
 
-## Oracle y migración
+El recorrido de un registro es: **formulario → controlador → PortalFinance → PortalDb → Oracle**. Después se vuelve a mostrar la pantalla con los datos guardados.
 
-El procedimiento revisado está en [Integración Oracle Web](docs/07_Integracion_Oracle_Web.md). `scripts/configurar-oracle-web.ps1 -CrearEsquemas -AutorizarDDL` prepara, tras autorización, FINPULSE_WEB y FINPULSE_WEB_TEST, solicita las contraseñas localmente con entrada oculta y configura ASP.NET Core User Secrets. Conserva FINPULSE_APP y SQLite. El portal no ejecuta DDL Oracle al arrancar.
+**Cálculos:** saldo = ingresos históricos − gastos históricos. Libre = saldo − dinero guardado en metas. Guardar en una meta reserva parte del saldo; no genera otro gasto. Retirar lo devuelve al saldo libre.
 
-La configuración local usa `Database:Provider=Oracle` y `ConnectionStrings:Oracle` fuera del repositorio, con privilegios mínimos y sin SYS/SYSTEM para la aplicación. El instalador verifica identidad, contenedor y seis tablas antes de inicializar categorías. `scripts/verificar-conexion-oracle.ps1 -Modo Web` verifica la conexión real; `scripts/validar-oracle-http.ps1` verifica los flujos HTTPS en FINPULSE_WEB_TEST con reinicio y concurrencia; `scripts/validar-restricciones-oracle.ps1` comprueba restricciones y rollback. El auxiliar C# `scripts/validar-oracle-web.ps1` quedó bloqueado por la política local de Windows; sus intentos fallidos están documentados. Estas pruebas requieren haber autorizado los datos sintéticos en ese esquema.
+Las cuatro tablas activas son `USUARIOS`, `CATEGORIAS`, `MOVIMIENTOS` y `METAS_AHORRO`. En movimientos, `Kind` vale 0 para ingreso, 1 para gasto y 2 para dinero guardado en una meta. El campo `RequestKey` evita duplicados al reenviar y `Revision` detecta cambios simultáneos.
 
-Consulta [reestructuración, importación y pendientes](docs/06_Reestructuracion_Web.md). La importación SQLite anterior exige mapeo revisado de IDs a usuarios y un destino vacío, no copia correos y no modifica el origen. Las cuentas Oracle anteriores requieren una importación específica pendiente.
+Se conservaron los datos y cuentas existentes. Las antiguas tablas de presupuestos y escenarios pueden seguir en Oracle, pero la aplicación ya no las consulta. `RecoveryHash` y `WarningPercent` son dos columnas obligatorias del esquema anterior; el modelo las conserva solo por compatibilidad, sin recuperación por código ni alertas de presupuesto. No se ejecutan cambios de esquema al iniciar.
 
-Los proyectos WPF anteriores permanecen fuera de la solución activa, con respaldo en `backups/original-con-rutas.zip`. El portal es independiente y contiene los algoritmos financieros reutilizados. El [README anterior](docs/README_Anterior_WPF.md) conserva el contexto histórico.
+Las contraseñas usan el hasher de ASP.NET Core. Se mantienen cookies seguras, protección CSRF, bloqueo tras intentos fallidos, consultas por propietario y transacciones para no guardar en metas más dinero del disponible.
+
+## Comprobar
+
+```powershell
+dotnet build FINPULSE.slnx
+dotnet run --project tests/Finpulse.WebChecks
+dotnet run --project tests/Finpulse.WebChecks -- --oracle
+```
+
+La última prueba requiere `ConnectionStrings:OracleTest` en User Secrets y solo admite `FINPULSE_WEB_TEST` local. Crea dos cuentas sintéticas, verifica HTTP, persistencia, aislamiento y concurrencia, y elimina los datos que creó. Los archivos temporales quedan en `tests/.qa/`, excluidos de Git.
